@@ -33,7 +33,7 @@ public static class Program
 			string path = $"{Config.DownloadDir}/{package}";
 
 			Shell($"git clone 'https://aur.archlinux.org/{package}.git' '{path}'");
-			if (!File.Exists("PKGBUILD")) { Console.WriteLine($"Pacakge '{package}' is empty."); continue; }
+			if (!File.Exists($"{path}/PKGBUILD")) { Console.WriteLine($"Pacakge '{package}' is empty."); continue; }
 
 			string dependencies = (!Config.NoBuildtime ? "$makedepends " : "") + (!Config.NoRuntime ? "$depends" : "");
 			foreach (string dependency in Shell($"source '{path}/PKGBUILD'; echo {dependencies} | tr -d '\\n'", true).Split(' ')) 
