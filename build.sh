@@ -1,5 +1,5 @@
 # build: mono
-# runtime: mono, zsh
+# runtime: mono
 
 mcs '-recurse:*.cs' -define:NO_FILES -out:installaur
 chmod 755 ./installaur
