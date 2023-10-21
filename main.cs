@@ -35,8 +35,14 @@ public static class Program
 			Shell($"git clone 'https://aur.archlinux.org/{package}.git' '{path}'");
 			if (!File.Exists($"{path}/PKGBUILD")) { Console.WriteLine($"Pacakge '{package}' is empty."); continue; }
 
-			string dependencies = (!Config.NoBuildtime ? "$makedepends " : "") + (!Config.NoRuntime ? "$depends" : "");
-			foreach (string dependency in Shell($"source '{path}/PKGBUILD'; echo {dependencies} | tr -d '\\n'", true).Split(' ')) 
+			Shell($"cat '{path}/.SRCINFO' | grep -e '\\sdepends\\s' | sed -E 's/\\s+depends = (.+)/\\1/' > '/tmp/installaur-{package}-depends'");
+			Shell($"cat '{path}/.SRCINFO' | grep -e '\\smakedepends\\s' | sed -E 's/\\s+makedepends = (.+)/\\1/' > '/tmp/installaur-{package}-makedepends'");
+
+			List<string> deps = new List<string>();
+			if (!Config.NoRuntime) { deps.AddRange(File.ReadAllText($"/tmp/installaur-{package}-depends").Split('\r', '\n').Where(x => !string.IsNullOrEmpty(x))); }
+			if (!Config.NoBuildtime) { deps.AddRange(File.ReadAllText($"/tmp/installaur-{package}-makedepends").Split('\r', '\n').Where(x => !string.IsNullOrEmpty(x))); }
+
+			foreach (string dependency in deps)
 			{
 				if (string.IsNullOrEmpty(dependency)) { continue; }
 				int code;
@@ -57,9 +63,9 @@ public static class Program
 			Directory.SetCurrentDirectory(path);
 
 			string makepkg = $"makepkg{!Config.PackageOnly ? " -i" : ""}";
-			Shell($"script -qe -c '{makepkg}' '/tmp/installaur-{package}'");
+			Shell($"script -qe -c '{makepkg}' '/tmp/installaur-{package}-makepkg'");
 
-			IEnumerable<string> keys = File.ReadAllText($"/tmp/installaur-{package}")
+			IEnumerable<string> keys = File.ReadAllText($"/tmp/installaur-{package}-makepkg")
 				.Split('\n')
 				.Where(x => x.Contains("unknown public key"))
 				.Select(x => x.Remove(0, x.IndexOf("unknown public key") + "unknown public key".Length + 1).Substring(0, 16))
@@ -67,8 +73,6 @@ public static class Program
 
 			foreach (string key in keys) { Shell($"gpg --recv-keys {key}"); }
 			if (keys.Any()) { Shell(makepkg); }
-
-			File.Delete($"/tmp/installaur-{package}");
 		}
 	}
 
